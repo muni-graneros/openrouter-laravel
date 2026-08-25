@@ -1,0 +1,48 @@
+name: CI
+
+# El paquete es una librería sin superficie HTTP: no hay nada que un agente de
+# pentesting pueda atacar acá. Lo que sí protege a quien lo instala es esto —que
+# la suite pase, que el formato sea el del ecosistema y que sus dependencias no
+# arrastren avisos de seguridad.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Semanal: un aviso de seguridad puede aparecer sin que nadie toque el código.
+    - cron: '0 4 * * 1'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pruebas:
+    name: Pest + Pint + audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: composer:v2
+
+      - name: Instalar dependencias
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Verificar formato (Pint)
+        run: ./vendor/bin/pint --test
+
+      # Bloquea, igual que en el sitio: un aviso que no detiene nada no se lee.
+      - name: Auditoría de dependencias
+        run: composer audit --format=plain
+
+      - name: Pest
+        run: ./vendor/bin/pest
