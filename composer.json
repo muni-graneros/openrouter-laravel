@@ -1,0 +1,47 @@
+{
+    "name": "muni-graneros/openrouter-laravel",
+    "description": "Laravel client for OpenRouter: free auto-router by default, automatic fallback to a paid model on rate limits, and an opt-in data policy that keeps prompts away from providers that train on or retain them.",
+    "keywords": ["laravel", "openrouter", "llm", "ai", "http"],
+    "license": "MIT",
+    "type": "library",
+    "require": {
+        "php": "^8.4",
+        "illuminate/http": "^13.0",
+        "illuminate/support": "^13.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.13",
+        "mockery/mockery": "^1.6",
+        "orchestra/testbench": "^11.0",
+        "pestphp/pest": "^4.7",
+        "phpunit/phpunit": "^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Muni\\OpenRouter\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Muni\\OpenRouter\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Muni\\OpenRouter\\OpenRouterServiceProvider"
+            ],
+            "aliases": {
+                "OpenRouter": "Muni\\OpenRouter\\Facades\\OpenRouter"
+            }
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        },
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
