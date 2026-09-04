@@ -5,12 +5,15 @@ name: CI
 # la suite pase, que el formato sea el del ecosistema y que sus dependencias no
 # arrastren avisos de seguridad.
 
+# `develop` TAMBIÉN, no solo `main`. La regla del ecosistema es trabajar en
+# develop, así que un CI que solo mira main deja pasar sin Pint, sin Pest y sin
+# audit justo la rama donde se desarrolla, y solo avisa cuando ya está todo
+# integrado.
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
   schedule:
     # Semanal: un aviso de seguridad puede aparecer sin que nadie toque el código.
     - cron: '0 4 * * 1'
@@ -21,7 +24,7 @@ concurrency:
 
 jobs:
   pruebas:
-    name: Pest + Pint + audit
+    name: Pest + PHPStan + Pint + audit
     runs-on: ubuntu-latest
 
     steps:
@@ -39,6 +42,11 @@ jobs:
 
       - name: Verificar formato (Pint)
         run: ./vendor/bin/pint --test
+
+      # El resto de paquetes del ecosistema va a nivel 8 sin baseline; este era
+      # el único sin análisis estático.
+      - name: Análisis estático (PHPStan nivel 8, sin baseline)
+        run: ./vendor/bin/phpstan analyse --memory-limit=1G --no-progress
 
       # Bloquea, igual que en el sitio: un aviso que no detiene nada no se lee.
       - name: Auditoría de dependencias

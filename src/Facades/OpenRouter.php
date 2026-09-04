@@ -12,9 +12,14 @@ use Muni\OpenRouter\OpenRouterClient;
  * Resolves the same singleton the container injects, so the facade and an
  * injected OpenRouterClient are always the same object.
  *
- * @method static string chat(array $messages, array $options = [])
- * @method static array raw(array $messages, array $options = [])
- * @method static Generator stream(array $messages, array $options = [])
+ * Los tipos de los arrays van completos a propósito: el análisis estático del
+ * ecosistema corre a nivel 8, y un `array` a secas en un `@method` deja al
+ * consumidor sin ninguna comprobación sobre lo que le pasa al cliente — que es
+ * justo donde viaja el prompt.
+ *
+ * @method static string chat(array<int, array{role: string, content: string}> $messages, array<string, mixed> $options = [])
+ * @method static array<string, mixed> raw(array<int, array{role: string, content: string}> $messages, array<string, mixed> $options = [])
+ * @method static Generator<int, string> stream(array<int, array{role: string, content: string}> $messages, array<string, mixed> $options = [])
  *
  * @see OpenRouterClient
  */

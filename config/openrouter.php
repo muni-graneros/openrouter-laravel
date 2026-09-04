@@ -49,8 +49,28 @@ return [
     | It is a routing constraint, not a lawful basis: whatever goes into a prompt
     | still leaves the server. Under Chile's Ley 21.719 the transfer needs its own
     | justification.
+    |
+    | Defaults to TRUE. It used to default to false, and that mattered: the
+    | default model is `openrouter/free`, and per OpenRouter's own docs the free
+    | providers are the ones that typically train on the prompt. So the shipped
+    | default was the most exposed configuration possible — and it is the one the
+    | first municipal AI feature would have inherited, because nobody changes a
+    | default by hand.
+    |
+    | Turning it on has a cost worth knowing: OpenRouter FAILS the request when no
+    | provider meets the policy, and that failure is a 404, not a 429. See the
+    | policy fallback in OpenRouterClient::raw().
     */
-    'exclude_logging' => (bool) env('OPENROUTER_EXCLUDE_LOGGING', false),
+    'exclude_logging' => (bool) env('OPENROUTER_EXCLUDE_LOGGING', true),
+
+    /*
+    | Ceiling on the reply length, merged UNDER whatever the caller passes.
+    |
+    | Without it, a reply from the paid fallback model is unbounded cost. It is a
+    | floor of safety, not a decision taken away from the consumer: any caller
+    | that needs a longer answer just passes its own 'max_tokens'.
+    */
+    'max_tokens' => (int) env('OPENROUTER_MAX_TOKENS', 1024),
 
     /*
     | Seconds a request may take. Covers the whole stream in stream() too, not
