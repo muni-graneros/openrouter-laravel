@@ -78,6 +78,8 @@ class OpenRouterClient
         private readonly ?string $fallbackModel = null,
         private readonly bool $excludeLogging = false,
         private readonly int $timeout = 60,
+        /** Ceiling on the reply length, merged UNDER whatever the caller passes. */
+        private readonly ?int $maxTokens = null,
     ) {}
 
     /**
@@ -95,6 +97,7 @@ class OpenRouterClient
             fallbackModel: config('openrouter.fallback_model'),
             excludeLogging: config('openrouter.exclude_logging'),
             timeout: config('openrouter.timeout'),
+            maxTokens: config('openrouter.max_tokens'),
         );
     }
 
@@ -141,12 +144,14 @@ class OpenRouterClient
         // call is worth retrying once on that model rather than failing the
         // feature — but only once, and only for free models: retrying a paid
         // model that is rate limited would just spend money on the same error.
-        if ($response->status() === 429 && $this->isFreeModel($model) && $this->fallbackModel !== null) {
-            Log::warning('OpenRouter rate limited the free model; retrying with the fallback model.', [
-                'rate_limited_model' => $model,
+        if ($this->debeCaerAlModeloPago($response, $model)) {
+            Log::warning('OpenRouter turned down the free model; retrying with the fallback model.', [
+                'declined_model' => $model,
                 'fallback_model' => $this->fallbackModel,
+                'status' => $response->status(),
             ]);
 
+            /** @var string $model */
             $model = $this->fallbackModel;
             $response = $this->post($messages, $options, $model);
         }
@@ -172,7 +177,7 @@ class OpenRouterClient
      * a stream that starts on a rate-limited model simply fails.
      *
      * The configured timeout covers the whole stream, not just the connection,
-     * so long generations need it raised in config/services.php.
+     * so long generations need it raised in config/openrouter.php.
      *
      * @param  array<int, array{role: string, content: string}>  $messages
      * @param  array<string, mixed>  $options
@@ -303,7 +308,11 @@ class OpenRouterClient
         // response_format…) and is passed through untouched.
         unset($options['model']);
 
+        // El tope va PRIMERO para que `...$options` lo pise: es un piso de
+        // seguridad contra una respuesta sin límite del modelo pago, no una
+        // decisión que le quite el control a quien llama.
         $body = [
+            ...($this->maxTokens !== null ? ['max_tokens' => $this->maxTokens] : []),
             ...$options,
             'model' => $model,
             'messages' => array_values($messages),
@@ -330,6 +339,46 @@ class OpenRouterClient
         }
 
         return $body;
+    }
+
+    /**
+     * ¿Toca reintentar en el modelo pago?
+     *
+     * Dos motivos, y solo desde un modelo gratuito con uno pago configurado:
+     *
+     * 1. **429.** El cupo gratuito se acabó. Reintentar en el pago vale la pena;
+     *    reintentar un modelo pago ya limitado sería gastar dinero en el mismo
+     *    error, por eso se exige que el modelo actual sea gratuito.
+     *
+     * 2. **Ningún proveedor cumple la política de datos.** Con
+     *    `exclude_logging` activo -que ahora es el default- OpenRouter FALLA la
+     *    petición cuando ningún proveedor acepta `data_collection=deny` + `zdr`,
+     *    y devuelve 404, no 429. Antes ese caso no disparaba el fallback: la
+     *    feature moría con una excepción sin explicación útil, en producción y
+     *    sin pista de por qué. Justamente el default seguro convertía el
+     *    fallback en inalcanzable.
+     *
+     * El 404 se distingue por el mensaje de OpenRouter, no por el código: un 404
+     * a secas también lo devuelve un modelo mal escrito, y ahí caer al pago
+     * costaría dinero en cada llamada en vez de fallar y avisar.
+     */
+    private function debeCaerAlModeloPago(Response $response, string $model): bool
+    {
+        if ($this->fallbackModel === null || ! $this->isFreeModel($model)) {
+            return false;
+        }
+
+        if ($response->status() === 429) {
+            return true;
+        }
+
+        if ($response->status() !== 404) {
+            return false;
+        }
+
+        $mensaje = $response->json('error.message');
+
+        return is_string($mensaje) && str_contains(mb_strtolower($mensaje), 'data policy');
     }
 
     /**

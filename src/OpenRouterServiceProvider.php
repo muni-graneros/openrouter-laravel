@@ -42,12 +42,15 @@ class OpenRouterServiceProvider extends ServiceProvider
             ], self::CONFIG_TAG);
         }
     }
-
-    /**
-     * @return array<int, string>
-     */
-    public function provides(): array
-    {
-        return [OpenRouterClient::class, 'openrouter'];
-    }
 }
+
+/*
+ * Aquí vivía un `provides()`. Se quitó porque este provider NO implementa
+ * DeferrableProvider, así que Laravel nunca lo llamaba: era una promesa de
+ * carga diferida que no hacía nada.
+ *
+ * Y no conviene hacerlo diferible: `mergeConfigFrom` dejaría de correr hasta que
+ * alguien resolviera el cliente, y hasta entonces `config('openrouter.*')`
+ * saldría vacío para cualquiera que lo leyera —incluido quien solo quiere saber
+ * si hay clave configurada—.
+ */

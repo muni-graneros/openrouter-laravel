@@ -1,0 +1,12 @@
+# Nivel 8 sin baseline, como el resto de paquetes del ecosistema. Un baseline
+# convierte la deuda en algo que ya no molesta, y en un paquete de cuatro
+# archivos no hay nada que valga la pena esconder.
+#
+# PHPStan a secas y no Larastan, igual que laravel-anonimizacion: acá no hay
+# Eloquent ni magia de Laravel que analizar, solo un cliente HTTP. Sumar Larastan
+# sería traer reglas que no aplican a nada de lo que hay en `src/`.
+parameters:
+    level: 8
+    paths:
+        - src
+    treatPhpDocTypesAsCertain: false
